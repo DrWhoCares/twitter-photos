@@ -19,7 +19,7 @@ import twitter
 class TwitterPhotos(object):
     def __init__(self, user=None, list_slug=None, outdir=None,
                  num=None, parallel=False, increment=False, size=None,
-                 exclude_replies=False, tl_type=None, test=False):
+                 exclude_replies=False, exclude_retweets=False, tl_type=None, test=False):
         """
         :param user: The screen_name of the user whom to return results for
         :param list_slug: The slug identifying the list owned by the `user`
@@ -30,9 +30,10 @@ class TwitterPhotos(object):
             enabled
         :param increment: A boolean indicating whether to download only new
             photos since last download
-        :param: Photo size represented as a string (one of `MEDIA_SIZES`)
-        :param: A boolean indicating whether to exlude replies tweets
-        :param type: Timeline type represented as a string (one of `TIMELINE_TYPES`)
+        :param size: Photo size represented as a string (one of `MEDIA_SIZES`)
+        :param exclude_replies: A boolean indicating whether to exclude tweets that are replies
+        :param exclude_retweets: A boolean indicating whether to exclude retweets
+        :param tl_type: Timeline type represented as a string (one of `TIMELINE_TYPES`)
         :param test: A boolean indicating whether in test mode
         """
         self.user = user
@@ -43,13 +44,15 @@ class TwitterPhotos(object):
         self.increment = increment
         self.size = size
         self.exclude_replies = exclude_replies
+        self.exclude_retweets = exclude_retweets
         self.tl_type = tl_type
         self.test = test
         if not self.test:
             self.api = twitter.Api(consumer_key=CONSUMER_KEY,
                                    consumer_secret=CONSUMER_SECRET,
                                    access_token_key=ACCESS_TOKEN,
-                                   access_token_secret=ACCESS_TOKEN_SECRET)
+                                   access_token_secret=ACCESS_TOKEN_SECRET,
+                                   tweet_mode='extended')
         else:
             self.api = TestAPI()
         self.auth_user = None
@@ -100,7 +103,8 @@ class TwitterPhotos(object):
                 count=count or COUNT_PER_GET,
                 max_id=max_id,
                 since_id=since_id,
-                exclude_replies=self.exclude_replies)
+                exclude_replies=self.exclude_replies,
+                include_rts=not self.exclude_retweets)
 
         if statuses:
             min_id = statuses[-1].id
@@ -110,10 +114,11 @@ class TwitterPhotos(object):
         fetched_photos = []
         for s in statuses:
             if s.media is not None:
+                s_dict=s.AsDict()
                 for m in s.media:
                     m_dict = m.AsDict()
                     if m_dict['type'] == 'photo':
-                        t = (m_dict['id'], m_dict['media_url'])
+                        t = (m_dict['id'], m_dict['media_url'], s_dict['id_str'])
                         fetched_photos.append(t)
 
         if num is not None:
@@ -165,7 +170,7 @@ class TwitterPhotos(object):
         for user in self.photos:
             photos = self.photos[user]
             for i, photo in enumerate(photos):
-                line = '%s %s %s' % (user, photo[0], photo[1])
+                line = '%s %s %s %s' % (user, photo[0], photo[1], photo[2])
                 if i < len(photos) - 1:
                     print(line)
                 else:
@@ -282,6 +287,7 @@ def main():
                              increment=args.increment,
                              size=args.size,
                              exclude_replies=args.exclude_replies,
+                             exclude_retweets=args.exclude_retweets,
                              tl_type=args.type)
     # Print only scree_name, tweet id and media_url
     if args.print:
