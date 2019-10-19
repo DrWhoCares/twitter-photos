@@ -5,6 +5,13 @@ import collections
 import json
 import os
 import sys
+import datetime
+from calendar import timegm
+
+try:
+    from rfc822 import parsedate
+except ImportError:
+    from email.utils import parsedate
 # Import .settings before twitter due to local development of python-twitter
 from .settings import (CONSUMER_KEY, CONSUMER_SECRET, ACCESS_TOKEN,
                        ACCESS_TOKEN_SECRET, COUNT_PER_GET, MEDIA_SIZES,
@@ -52,6 +59,7 @@ class TwitterPhotos(object):
                                    consumer_secret=CONSUMER_SECRET,
                                    access_token_key=ACCESS_TOKEN,
                                    access_token_secret=ACCESS_TOKEN_SECRET,
+                                   sleep_on_rate_limit=True,
                                    tweet_mode='extended')
         else:
             self.api = TestAPI()
@@ -118,7 +126,9 @@ class TwitterPhotos(object):
                 for m in s.media:
                     m_dict = m.AsDict()
                     if m_dict['type'] == 'photo':
-                        t = (m_dict['id'], m_dict['media_url'], s_dict['id_str'])
+                        seconds = timegm(parsedate(s.created_at))
+                        date = datetime.datetime.fromtimestamp(seconds)
+                        t = (m_dict['id'], m_dict['media_url'], s_dict['id_str'], date, s.retweeted_status)
                         fetched_photos.append(t)
 
         if num is not None:
@@ -137,7 +147,7 @@ class TwitterPhotos(object):
 
     def download(self, size=None):
         if size is None:
-            size = self.size or 'large'
+            size = self.size or 'orig'
         if size not in MEDIA_SIZES:
             raise Exception('Invalid media size %s' % size)
         for user in self.photos:
@@ -193,13 +203,35 @@ class TwitterPhotos(object):
         else:
             for photo in photos:
                 media_url = photo[1]
-                self._print_progress(user, media_url)
-                download(media_url, size, outdir)
+                date = photo[3]
+                is_retweet = photo[4]
+                
+                final_path = outdir
+                # Create Subfolders for Years and Months
+                final_path = os.path.join(final_path, date.strftime("%Y"))
+                create_directory(final_path)
+                final_path = os.path.join(final_path, date.strftime("%m"))
+                create_directory(final_path)
+                
+                if is_retweet:
+                    # Create Subfolder to separate any Retweets
+                    final_path = os.path.join(final_path, "Retweets")
+                    create_directory(final_path)
+                
+                timestamp = date.strftime("%Y-%m-%d_") + size + "_"
+                
+                if is_retweet:
+                    timestamp = "RT_" + timestamp
+                
+                filepath = os.path.join(final_path, timestamp + os.path.basename(media_url))
+                self._print_progress(user, filepath, size)
+                download(media_url, size, final_path, timestamp)
                 self._downloaded += 1
 
-    def _get_progress(self, user, media_url):
+    def _get_progress(self, user, filepath, size):
         d = {
-            'media_url': os.path.basename(media_url),
+            'filepath': filepath,
+            'size': size,
             'user': user,
             'index': self._downloaded + 1,
             'total': self._total,
@@ -207,9 +239,8 @@ class TwitterPhotos(object):
         progress = PROGRESS_FORMATTER % d
         return progress
 
-    def _print_progress(self, user, media_url):
-        sys.stdout.write('\r%s' % self._get_progress(user, media_url))
-        sys.stdout.flush()
+    def _print_progress(self, user, filepath, size):
+        print('\r%s' % self._get_progress(user, filepath, size))
 
 
 class TestAPI(object):

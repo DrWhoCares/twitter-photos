@@ -79,11 +79,15 @@ Print username, tweet ids, and URLs instead of downloading them with ``-p`` swit
 
     $ twphotos -u wired -p
 
-Exclude replies tweets using ``-e`` switch::
+Exclude tweets that are replies using ``-e`` switch::
 
     $ twphotos -u wired -e
 
-Download small-sized photos ::
+Exclude retweets using ``-w`` switch::
+
+    $ twphotos -u wired -w
+
+Download small-sized photos, default is orig::
 
     $ twphotos -u wired -s small
 
@@ -106,5 +110,7 @@ The "twphotos" command accepts the following options:
   -i, --increment       download only new photos since last download
   -e, --exclude_replies
                         exclude replies
+  -w, --exclude_retweets
+                        exclude retweets
   -s SIZE, --size SIZE  photo size (``orig``, ``large``, ``medium``, ``small`` and ``thumb``)
   -t TYPE, --type TYPE  timeline type (``user`` and ``favorites``)

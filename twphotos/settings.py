@@ -57,6 +57,6 @@ ACCESS_TOKEN_SECRET = _items.get(CREDENTIAL_NAMES[3])
 COUNT_PER_GET = 200
 MEDIA_SIZES = ('orig', 'large', 'medium', 'small', 'thumb')
 PROGRESS_FORMATTER = \
-    'Downloading %(media_url)s from %(user)s: %(index)d/%(total)d'
+    'Downloading %(filepath)s with size \'%(size)s\' from %(user)s: %(index)d/%(total)d'
 NUM_THREADS = 8
 TIMELINE_TYPES = ('user', 'favorites')
